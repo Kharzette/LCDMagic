@@ -227,7 +227,7 @@ namespace LCDMagicMod
 		{
 			foreach(KeyValuePair<int, PlayerStructure> ps in mPlayerStructs)
 			{
-				ps.Value.UpdateAmmo(mIDConstants, mAPI);
+				ps.Value.UpdateAmmo(mIDConstants);
 			}
 		}
 

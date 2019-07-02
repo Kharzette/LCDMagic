@@ -40,14 +40,11 @@ namespace LCDMagicMod
 		}
 
 
-		void ParseVars(string name, Dictionary<string, string> vars, IModApi api)
+		void ParseVars(string name, Dictionary<string, string> vars)
 		{
-//			api.Log("Name: " + name);
-
 			int	firstDollar	=name.IndexOf('$');
 			if(firstDollar < 0)
 			{
-//				api.Log("fd < 0: " + name);
 				return;
 			}
 
@@ -59,7 +56,6 @@ namespace LCDMagicMod
 
 			if(nextDollar <=0 && nextEqual <= 0)
 			{
-//				api.Log("both next < 0");
 				key	=name.Substring(firstDollar);
 
 				vars.Add(key, "");
@@ -68,83 +64,117 @@ namespace LCDMagicMod
 
 			if(nextDollar > 0 && nextDollar < nextEqual)
 			{
-//				api.Log("nd < ne");
 				key	=name.Substring(firstDollar, nextDollar - firstDollar);
 			}
 			else if(nextEqual > 0 && nextEqual < nextDollar)
 			{
 				key	=name.Substring(firstDollar, nextEqual - firstDollar);
 				val	=name.Substring(nextEqual + 1, nextDollar - nextEqual - 1);
-//				api.Log("ne < nd: " + firstDollar + ", " + nextDollar + ", " + nextEqual + ", " + key + ", " + val);
 			}
 			else if(nextEqual > 0)
 			{
-//				api.Log("ne > 0");
 				key	=name.Substring(firstDollar, nextEqual - firstDollar);
 				val	=name.Substring(nextEqual + 1);
 			}
 			else
 			{
-//				api.Log("nd > 0");
 				key	=name.Substring(firstDollar, nextDollar - firstDollar);
 			}
 
-//			api.Log("adding");
 			vars.Add(key, val);
 
 			if(nextDollar > 0)
 			{
 				name	=name.Substring(nextDollar);
-				ParseVars(name, vars, api);
+				ParseVars(name, vars);
 			}
-//			api.Log("backing out");
 		}
 
 
-		internal void UpdateAmmo(Dictionary<int, string> idToItemName, IModApi api)
+		static void AddTextLine(ref string text, string line, int columnWidth, ref bool bColumnToggle)
+		{
+			if(columnWidth > 0)
+			{
+				if(bColumnToggle)
+				{
+					text	+=line + "\n";
+				}
+				else
+				{
+					text	+=line.PadRight(columnWidth);
+				}
+				bColumnToggle	=!bColumnToggle;
+			}
+			else
+			{
+				text	+=line + "\n";
+			}
+		}
+
+
+		void CheckCustomNames(ILcd lcd, out int columnWidth)
+		{
+			//check name for variables
+			columnWidth	=-1;
+			if(mDeviceBlocks.ContainsKey(lcd))
+			{
+				Dictionary<string, string>	vars	=new Dictionary<string, string>();
+
+				ParseVars(mDeviceBlocks[lcd].CustomName, vars);
+				
+				if(vars.ContainsKey("$Fnt"))
+				{
+					int	fontSize;
+					if(Int32.TryParse(vars["$Fnt"], out fontSize))
+					{
+						lcd.SetFontSize(fontSize);
+					}
+				}
+				if(vars.ContainsKey("$CW"))
+				{
+					if(Int32.TryParse(vars["$CW"], out columnWidth))
+					{
+					}
+				}
+			}
+		}
+
+
+		internal void UpdateAmmo(Dictionary<int, string> idToItemName)
 		{
 			foreach(KeyValuePair<IContainer, ILcd> dlcd in mAmmoLCD)
 			{
 				//check name for variables
-				if(mDeviceBlocks.ContainsKey(dlcd.Value))
-				{
-					Dictionary<string, string>	vars	=new Dictionary<string, string>();
-
-					ParseVars(mDeviceBlocks[dlcd.Value].CustomName, vars, api);
-/*
-					string	dBug	="";
-					foreach(KeyValuePair<string, string> s in vars)
-					{
-						dBug	+=s.Key + ":" + s.Value + "\n";
-					}
-
-					dlcd.Value.SetText(dBug);
-					return;
-*/
-					if(vars.ContainsKey("$Fnt"))
-					{
-						int	fontSize;
-						if(Int32.TryParse(vars["$Fnt"], out fontSize))
-						{
-							dlcd.Value.SetFontSize(fontSize);
-						}
-					}
-				}
+				//check name for variables
+				int	columnWidth	=-1;
+				CheckCustomNames(dlcd.Value, out columnWidth);
 
 				string	t	="Ammo Remaining:\n";
 
 				List<ItemStack>	stuff	=dlcd.Key.GetContent();
 
+				bool	bColToggle	=false;
 				foreach(ItemStack stk in stuff)
 				{
 					if(idToItemName.ContainsKey(stk.id))
 					{
-						t	+="Ammo: " + idToItemName[stk.id] + " " + stk.count + "\n";
+						AddTextLine(ref t, "Ammo: " + idToItemName[stk.id] + " " + stk.count,
+									columnWidth, ref bColToggle);
 					}
 					else
 					{
-						t	+="Other Item: " + stk.id + " " + stk.count + "\n";
+						AddTextLine(ref t, "Other Item: " + stk.id + " " + stk.count,
+									columnWidth, ref bColToggle);
 					}
+				}
+
+				if(!bColToggle)
+				{
+					t	+="\n\n";
+				}
+				else
+				{
+					t	+="\n";
 				}
 
 				t	+="Volume Capacity: " + dlcd.Key.VolumeCapacity;
@@ -158,20 +188,36 @@ namespace LCDMagicMod
 		{
 			foreach(KeyValuePair<IContainer, ILcd> dlcd in mContainerLCD)
 			{
+				//check name for variables
+				int	columnWidth	=-1;
+				CheckCustomNames(dlcd.Value, out columnWidth);
+
 				string	t	="Container Items:\n";
 
 				List<ItemStack>	stuff	=dlcd.Key.GetContent();
 
+				bool	bColToggle	=false;
 				foreach(ItemStack stk in stuff)
 				{
 					if(idToItemName.ContainsKey(stk.id))
 					{
-						t	+="Known Item: " + idToItemName[stk.id] + " " + stk.count + "\n";
+						AddTextLine(ref t, "Known Item: " + idToItemName[stk.id] + " " + stk.count,
+									columnWidth, ref bColToggle);
 					}
 					else
 					{
-						t	+="UnKnown Item: " + stk.id + " " + stk.count + "\n";
+						AddTextLine(ref t, "UnKnown Item: " + stk.id + " " + stk.count,
+									columnWidth, ref bColToggle);
 					}
+				}
+
+				if(!bColToggle)
+				{
+					t	+="\n\n";
+				}
+				else
+				{
+					t	+="\n";
 				}
 
 				t	+="Volume Capacity: " + dlcd.Key.VolumeCapacity;
@@ -185,24 +231,40 @@ namespace LCDMagicMod
 		{
 			foreach(KeyValuePair<IContainer, ILcd> dlcd in mFridgeLCD)
 			{
+				//check name for variables
+				int	columnWidth	=-1;
+				CheckCustomNames(dlcd.Value, out columnWidth);
+				
 				string	t	="Fridge Items:\n";
 
 				List<ItemStack>	stuff	=dlcd.Key.GetContent();
 
+				bool	bColToggle	=false;
 				foreach(ItemStack stk in stuff)
 				{
 					if(idToItemName.ContainsKey(stk.id))
 					{
-						t	+="Known Item: " + idToItemName[stk.id] + " " + stk.count + "\n";
+						AddTextLine(ref t,"Known Item: " + idToItemName[stk.id] + " " + stk.count,
+									columnWidth, ref bColToggle);
 					}
 					else
 					{
-						t	+="UnKnown Item: " + stk.id + " " + stk.count + "\n";
+						AddTextLine(ref t, "UnKnown Item: " + stk.id + " " + stk.count,
+									columnWidth, ref bColToggle);
 					}
 				}
 
+				if(!bColToggle)
+				{
+					t	+="\n\n";
+				}
+				else
+				{
+					t	+="\n";
+				}
+
 				t	+="Volume Capacity: " + dlcd.Key.VolumeCapacity;
-				t	+="Decay Factor: " + dlcd.Key.DecayFactor;
+				t	+="\nDecay Factor: " + dlcd.Key.DecayFactor;
 
 				dlcd.Value.SetText(t);
 			}
