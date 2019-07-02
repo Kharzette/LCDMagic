@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net461</TargetFramework>
+    <GenerateFullPaths>true</GenerateFullPaths>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <!--Set EmpyrionInstallDir to where the game is installed-->
+    <Reference Include="$(EmpyrionInstallDir)/Client/Empyrion_Data/Managed/UnityEngine.CoreModule.dll"/>
+    <Reference Include="$(EmpyrionInstallDir)/Client/Empyrion_Data/Managed/Assembly-CSharp-firstpass.dll"/>
+    <Reference Include="$(EmpyrionInstallDir)/Client/Empyrion_Data/Managed/ModApi.dll"/>
+    <Reference Include="$(EmpyrionInstallDir)/Client/Empyrion_Data/Managed/Mif.dll"/>
+    <Reference Include="$(EmpyrionInstallDir)/Client/Empyrion_Data/Managed/protobuf-net.dll"/>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="LCDMagic_Info.yaml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Constants.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+</Project>

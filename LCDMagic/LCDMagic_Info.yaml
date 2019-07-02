@@ -1,0 +1,11 @@
+# all parameters are optional
+
+Name: LCDMagic
+Description: Automagically display related info from nearby devices
+Author: Kharzette
+Version: 0.1
+# Website: https://...
+
+# Possible targets: None, Dedi, PfServer, Client (the latter three can be combined)
+# Note: If not set 'Dedi' is the default
+ModTargets: PfServer

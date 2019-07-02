@@ -1,0 +1,16 @@
+BlockScanDistance		3		//distance in blocks to look for associated devices
+
+//all times are in milliseconds
+LCDScanInterval			10000	//interval to look for new lcd screens to take over
+FuelTankUpdateInterval	3000	//update times for related displays
+O2TankUpdateInterval	3000	//update times for related displays
+ContainerUpdateInterval	3000	//update times for related displays
+AmmoUpdateInterval		1000	//update times for related displays
+FridgeUpdateInterval	5000	//update times for related displays
+
+//item ids
+2106	Shotgun
+2103	Sniper
+2100	Pistol
+2102	Rifle
+2104	15mm
