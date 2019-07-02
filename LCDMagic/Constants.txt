@@ -9,6 +9,7 @@ AmmoUpdateInterval		1000	//update times for related displays
 FridgeUpdateInterval	5000	//update times for related displays
 
 //item ids
+//probably a way to get these from the game but I haven't found it yet
 2106	Shotgun
 2103	Sniper
 2100	Pistol

@@ -20,6 +20,9 @@ namespace LCDMagicMod
 		//device positions we care about
 		Dictionary<IDevice, VectorInt3>	mDevicePositions	=new Dictionary<IDevice, VectorInt3>();
 
+		//block of the device
+		Dictionary<IDevice, IBlock>	mDeviceBlocks	=new Dictionary<IDevice, IBlock>();
+
 
 		internal PlayerStructure(IStructure str)
 		{
@@ -37,10 +40,97 @@ namespace LCDMagicMod
 		}
 
 
-		internal void UpdateAmmo(Dictionary<int, string> idToItemName)
+		void ParseVars(string name, Dictionary<string, string> vars, IModApi api)
+		{
+//			api.Log("Name: " + name);
+
+			int	firstDollar	=name.IndexOf('$');
+			if(firstDollar < 0)
+			{
+//				api.Log("fd < 0: " + name);
+				return;
+			}
+
+			int	nextDollar	=name.IndexOf('$', firstDollar + 1);
+			int	nextEqual	=name.IndexOf('=', firstDollar + 1);
+
+			string	key	="";
+			string	val	="";
+
+			if(nextDollar <=0 && nextEqual <= 0)
+			{
+//				api.Log("both next < 0");
+				key	=name.Substring(firstDollar);
+
+				vars.Add(key, "");
+				return;
+			}
+
+			if(nextDollar > 0 && nextDollar < nextEqual)
+			{
+//				api.Log("nd < ne");
+				key	=name.Substring(firstDollar, nextDollar - firstDollar);
+			}
+			else if(nextEqual > 0 && nextEqual < nextDollar)
+			{
+				key	=name.Substring(firstDollar, nextEqual - firstDollar);
+				val	=name.Substring(nextEqual + 1, nextDollar - nextEqual - 1);
+//				api.Log("ne < nd: " + firstDollar + ", " + nextDollar + ", " + nextEqual + ", " + key + ", " + val);
+			}
+			else if(nextEqual > 0)
+			{
+//				api.Log("ne > 0");
+				key	=name.Substring(firstDollar, nextEqual - firstDollar);
+				val	=name.Substring(nextEqual + 1);
+			}
+			else
+			{
+//				api.Log("nd > 0");
+				key	=name.Substring(firstDollar, nextDollar - firstDollar);
+			}
+
+//			api.Log("adding");
+			vars.Add(key, val);
+
+			if(nextDollar > 0)
+			{
+				name	=name.Substring(nextDollar);
+				ParseVars(name, vars, api);
+			}
+//			api.Log("backing out");
+		}
+
+
+		internal void UpdateAmmo(Dictionary<int, string> idToItemName, IModApi api)
 		{
 			foreach(KeyValuePair<IContainer, ILcd> dlcd in mAmmoLCD)
 			{
+				//check name for variables
+				if(mDeviceBlocks.ContainsKey(dlcd.Value))
+				{
+					Dictionary<string, string>	vars	=new Dictionary<string, string>();
+
+					ParseVars(mDeviceBlocks[dlcd.Value].CustomName, vars, api);
+/*
+					string	dBug	="";
+					foreach(KeyValuePair<string, string> s in vars)
+					{
+						dBug	+=s.Key + ":" + s.Value + "\n";
+					}
+
+					dlcd.Value.SetText(dBug);
+					return;
+*/
+					if(vars.ContainsKey("$Fnt"))
+					{
+						int	fontSize;
+						if(Int32.TryParse(vars["$Fnt"], out fontSize))
+						{
+							dlcd.Value.SetFontSize(fontSize);
+						}
+					}
+				}
+
 				string	t	="Ammo Remaining:\n";
 
 				List<ItemStack>	stuff	=dlcd.Key.GetContent();
@@ -139,7 +229,7 @@ namespace LCDMagicMod
 			}
 			if(!mStruct.IsPowered)
 			{
-				api.Log("Struct: " + mStruct + " not powered...");
+				//api.Log("Struct: " + mStruct + " not powered...");
 				return;
 			}
 
@@ -176,13 +266,9 @@ namespace LCDMagicMod
 		{
 			IDevicePosList	idpl	=mStruct.GetDevices("LCD");
 
-			api.Log("Devices LCD gets: " + idpl.Count);
-
 			for(int i=0;i < idpl.Count;i++)
 			{
 				VectorInt3	pos	=idpl.GetAt(i);
-
-				api.Log("LCD Device at pos: " + pos);
 
 				ILcd	lcd	=mStruct.GetDevice<ILcd>(pos);
 
@@ -202,6 +288,8 @@ namespace LCDMagicMod
 				{
 					continue;	//already in use
 				}
+
+				api.Log("Unattached LCD Device at pos: " + pos);
 
 				//find the closest device within BlockScanDistance
 				float		blockDist	=blockScanDist;
@@ -281,6 +369,41 @@ namespace LCDMagicMod
 					mDevicePositions.Add(assoc, bestPos);
 				}
 
+				IBlock	lcdBlock	=mStruct.GetBlock(pos);
+				IBlock	devBlock	=mStruct.GetBlock(bestPos);
+
+				if(lcdBlock == null)
+				{
+					api.Log("Null block for lcd!");
+				}
+				else
+				{
+					if(mDeviceBlocks.ContainsKey(lcd))
+					{
+						api.Log("BadCleanup!  Device blocks already has lcd: " + lcd + "!!");
+					}
+					else
+					{
+						mDeviceBlocks.Add(lcd, lcdBlock);
+					}
+				}
+
+				if(devBlock == null)
+				{
+					api.Log("Null block for device!");
+				}
+				else
+				{
+					if(mDeviceBlocks.ContainsKey(assoc))
+					{
+						api.Log("BadCleanup!  Device blocks already has assoc: " + assoc + "!!");
+					}
+					else
+					{
+						mDeviceBlocks.Add(assoc, devBlock);
+					}
+				}
+
 				if(bestType == 0)
 				{
 					api.Log("Ammo Assoc");
@@ -305,7 +428,7 @@ namespace LCDMagicMod
 		}
 
 
-		static void NukeLCD(Dictionary<IContainer, ILcd> dict, ILcd toNuke)
+		void NukeLCD(Dictionary<IContainer, ILcd> dict, ILcd toNuke)
 		{
 			IContainer	found	=null;
 			foreach(KeyValuePair<IContainer, ILcd> clcd in dict)
@@ -319,6 +442,10 @@ namespace LCDMagicMod
 			if(found != null)
 			{
 				dict.Remove(found);
+				mDevicePositions.Remove(toNuke);
+				mDevicePositions.Remove(found);
+				mDeviceBlocks.Remove(toNuke);
+				mDeviceBlocks.Remove(found);
 			}
 		}
 
@@ -356,28 +483,41 @@ namespace LCDMagicMod
 					NukeLCD(mContainerLCD, lcd);
 					NukeLCD(mFridgeLCD, lcd);
 					NukeLCD(mHarvestLCD, lcd);
-
-					mDevicePositions.Remove(toNuke[i]);
 				}
 				else if(toNuke[i] is IContainer)
 				{
 					IContainer	con	=toNuke[i] as IContainer;
+					ILcd		lcd	=null;
 
 					if(mAmmoLCD.ContainsKey(con))
 					{
+						lcd	=mAmmoLCD[con];
 						mAmmoLCD.Remove(con);
 					}
 					if(mContainerLCD.ContainsKey(con))
 					{
+						lcd	=mContainerLCD[con];
 						mContainerLCD.Remove(con);
 					}
 					if(mFridgeLCD.ContainsKey(con))
 					{
+						lcd	=mFridgeLCD[con];
 						mFridgeLCD.Remove(con);
 					}
 					if(mHarvestLCD.ContainsKey(con))
 					{
+						lcd	=mHarvestLCD[con];
 						mHarvestLCD.Remove(con);
+					}
+
+					//make sure if one device is gone
+					//to remove the associated stuff as well
+					if(lcd != null)
+					{
+						mDevicePositions.Remove(lcd);
+						mDeviceBlocks.Remove(lcd);
+						mDevicePositions.Remove(con);
+						mDeviceBlocks.Remove(con);
 					}
 				}
 			}
