@@ -22,8 +22,10 @@ namespace LCDMagicMod
 		Dictionary<string, PVector3>	mVConstants		=new Dictionary<string, PVector3>();
 		Dictionary<int, string>			mIDConstants	=new Dictionary<int, string>();
 
-		Timer	mLCDScanTimer, mFuelTimer, mO2Timer;
-		Timer	mContainerTimer, mAmmoTimer, mFridgeTimer;
+		Timer	mLCDScanTimer, mContainerTimer;
+		Timer	mAmmoTimer, mFridgeTimer;
+		Timer	mSpecialTimer;
+
 
 		bool	mbCheckBlockDestroyed;
 
@@ -41,35 +43,11 @@ namespace LCDMagicMod
 
 			LoadConstants();
 
-			mLCDScanTimer			=new Timer(mIConstants["LCDScanInterval"]);
-			mLCDScanTimer.AutoReset	=true;
-			mLCDScanTimer.Elapsed	+=OnLCDScanTimer;
-			mLCDScanTimer.Start();
-
-			mFuelTimer				=new Timer(mIConstants["FuelTankUpdateInterval"]);
-			mFuelTimer.AutoReset	=true;
-			mFuelTimer.Elapsed		+=OnFuelTimer;
-			mFuelTimer.Start();
-
-			mO2Timer			=new Timer(mIConstants["O2TankUpdateInterval"]);
-			mO2Timer.AutoReset	=true;
-			mO2Timer.Elapsed	+=OnO2Timer;
-			mO2Timer.Start();
-
-			mContainerTimer				=new Timer(mIConstants["ContainerUpdateInterval"]);
-			mContainerTimer.AutoReset	=true;
-			mContainerTimer.Elapsed		+=OnContainerTimer;
-			mContainerTimer.Start();
-
-			mAmmoTimer				=new Timer(mIConstants["AmmoUpdateInterval"]);
-			mAmmoTimer.AutoReset	=true;
-			mAmmoTimer.Elapsed		+=OnAmmoTimer;
-			mAmmoTimer.Start();
-
-			mFridgeTimer			=new Timer(mIConstants["FridgeUpdateInterval"]);
-			mFridgeTimer.AutoReset	=true;
-			mFridgeTimer.Elapsed	+=OnFridgeTimer;
-			mFridgeTimer.Start();
+			StartTimer(ref mLCDScanTimer, "LCDScanInterval", OnLCDScanTimer);
+			StartTimer(ref mContainerTimer, "ContainerUpdateInterval", OnContainerTimer);
+			StartTimer(ref mAmmoTimer, "AmmoUpdateInterval", OnAmmoTimer);
+			StartTimer(ref mFridgeTimer, "FridgeUpdateInterval", OnFridgeTimer);
+			StartTimer(ref mSpecialTimer, "SpecialUpdateInterval", OnSpecialTimer);
 		}
 
 
@@ -191,6 +169,52 @@ namespace LCDMagicMod
 		}
 
 
+		void OnSpecialTimer(object sender, ElapsedEventArgs eea)
+		{
+			foreach(KeyValuePair<int, PlayerStructure> ps in mPlayerStructs)
+			{
+				ps.Value.UpdateSpecial(mIDConstants);
+			}
+		}
+
+
+		void OnAmmoTimer(object sender, ElapsedEventArgs eea)
+		{
+			foreach(KeyValuePair<int, PlayerStructure> ps in mPlayerStructs)
+			{
+				ps.Value.UpdateAmmo(mIDConstants);
+			}
+		}
+
+
+		void OnContainerTimer(object sender, ElapsedEventArgs eea)
+		{
+			foreach(KeyValuePair<int, PlayerStructure> ps in mPlayerStructs)
+			{
+				ps.Value.UpdateContainer(mIDConstants);
+			}
+		}
+
+
+		void OnFridgeTimer(object sender, ElapsedEventArgs eea)
+		{
+			foreach(KeyValuePair<int, PlayerStructure> ps in mPlayerStructs)
+			{
+				ps.Value.UpdateFridge(mIDConstants);
+			}
+		}
+
+
+		void OnLCDScanTimer(object sender, ElapsedEventArgs eea)
+		{
+			foreach(KeyValuePair<int, PlayerStructure> ps in mPlayerStructs)
+			{
+				ps.Value.LCDScan(mbCheckBlockDestroyed, mAPI, mIConstants["BlockScanDistance"]);				
+			}
+			mbCheckBlockDestroyed	=false;
+		}
+
+
 		void BlockSearch(IStructure str)
 		{
 			//in my test case, the y is off by 128
@@ -223,50 +247,12 @@ namespace LCDMagicMod
 		}
 
 
-		void OnAmmoTimer(object sender, ElapsedEventArgs eea)
+		void StartTimer(ref Timer t, string intervalKey, ElapsedEventHandler elapsed)
 		{
-			foreach(KeyValuePair<int, PlayerStructure> ps in mPlayerStructs)
-			{
-				ps.Value.UpdateAmmo(mIDConstants);
-			}
-		}
-
-
-		void OnContainerTimer(object sender, ElapsedEventArgs eea)
-		{
-			foreach(KeyValuePair<int, PlayerStructure> ps in mPlayerStructs)
-			{
-				ps.Value.UpdateContainer(mIDConstants);
-			}
-		}
-
-
-		void OnFridgeTimer(object sender, ElapsedEventArgs eea)
-		{
-			foreach(KeyValuePair<int, PlayerStructure> ps in mPlayerStructs)
-			{
-				ps.Value.UpdateFridge(mIDConstants);
-			}
-		}
-
-
-		void OnFuelTimer(object sender, ElapsedEventArgs eea)
-		{
-		}
-
-
-		void OnO2Timer(object sender, ElapsedEventArgs eea)
-		{
-		}
-
-
-		void OnLCDScanTimer(object sender, ElapsedEventArgs eea)
-		{
-			foreach(KeyValuePair<int, PlayerStructure> ps in mPlayerStructs)
-			{
-				ps.Value.LCDScan(mbCheckBlockDestroyed, mAPI, mIConstants["BlockScanDistance"]);				
-			}
-			mbCheckBlockDestroyed	=false;
+			t			=new Timer(mIConstants[intervalKey]);
+			t.AutoReset	=true;
+			t.Elapsed	+=elapsed;
+			t.Start();
 		}
 
 

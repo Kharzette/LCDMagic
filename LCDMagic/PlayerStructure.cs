@@ -23,6 +23,10 @@ namespace LCDMagicMod
 		//block of the device
 		Dictionary<IDevice, IBlock>	mDeviceBlocks	=new Dictionary<IDevice, IBlock>();
 
+		//special lcds for not-yet-implemented devices and such
+		List<ILcd>	mTankLCDs	=new List<ILcd>();
+		List<ILcd>	mFarmLCDs	=new List<ILcd>();
+
 
 		internal PlayerStructure(IStructure str)
 		{
@@ -40,102 +44,63 @@ namespace LCDMagicMod
 		}
 
 
-		void ParseVars(string name, Dictionary<string, string> vars)
+		internal void UpdateSpecial(Dictionary<int, string> idToItemName)
 		{
-			int	firstDollar	=name.IndexOf('$');
-			if(firstDollar < 0)
+			foreach(ILcd lcd in mTankLCDs)
 			{
-				return;
-			}
-
-			int	nextDollar	=name.IndexOf('$', firstDollar + 1);
-			int	nextEqual	=name.IndexOf('=', firstDollar + 1);
-
-			string	key	="";
-			string	val	="";
-
-			if(nextDollar <=0 && nextEqual <= 0)
-			{
-				key	=name.Substring(firstDollar);
-
-				vars.Add(key, "");
-				return;
-			}
-
-			if(nextDollar > 0 && nextDollar < nextEqual)
-			{
-				key	=name.Substring(firstDollar, nextDollar - firstDollar);
-			}
-			else if(nextEqual > 0 && nextEqual < nextDollar)
-			{
-				key	=name.Substring(firstDollar, nextEqual - firstDollar);
-				val	=name.Substring(nextEqual + 1, nextDollar - nextEqual - 1);
-			}
-			else if(nextEqual > 0)
-			{
-				key	=name.Substring(firstDollar, nextEqual - firstDollar);
-				val	=name.Substring(nextEqual + 1);
-			}
-			else
-			{
-				key	=name.Substring(firstDollar, nextDollar - firstDollar);
-			}
-
-			vars.Add(key, val);
-
-			if(nextDollar > 0)
-			{
-				name	=name.Substring(nextDollar);
-				ParseVars(name, vars);
-			}
-		}
-
-
-		static void AddTextLine(ref string text, string line, int columnWidth, ref bool bColumnToggle)
-		{
-			if(columnWidth > 0)
-			{
-				if(bColumnToggle)
+				if(!mDeviceBlocks.ContainsKey(lcd))
 				{
-					text	+=line + "\n";
+					continue;
+				}
+				IBlock	blk	=mDeviceBlocks[lcd];
+
+				//check name for variables
+				int	columnWidth	=-1;
+				CheckCustomNames(lcd, out columnWidth);
+
+				string	t	="";
+				if(mStruct.FuelTank == null)
+				{
+					t	+="Structure has no fuel tank!\n\n";
 				}
 				else
 				{
-					text	+=line.PadRight(columnWidth);
+					t	="Power On: " + mStruct.IsPowered + "\n\n";
+					t	+="Fuel Capacity: " + mStruct.FuelTank.Capacity + "\n";
+					t	+="Fuel Remaining: " + mStruct.FuelTank.Content + "\n\n";
 				}
-				bColumnToggle	=!bColumnToggle;
+
+				if(mStruct.OxygenTank == null)
+				{
+					t	+="Structure has no Oxygen tank!\n\n";
+				}
+				else
+				{
+					t	+="O2 Capacity: " + mStruct.OxygenTank.Capacity + "\n";
+					t	+="O2 Remaining: " + mStruct.OxygenTank.Content + "\n";
+				}
+
+				lcd.SetText(t);
 			}
-			else
+
+			foreach(ILcd lcd in mFarmLCDs)
 			{
-				text	+=line + "\n";
-			}
-		}
+				if(!mDeviceBlocks.ContainsKey(lcd))
+				{
+					continue;
+				}
+				IBlock	blk	=mDeviceBlocks[lcd];
 
-
-		void CheckCustomNames(ILcd lcd, out int columnWidth)
-		{
-			//check name for variables
-			columnWidth	=-1;
-			if(mDeviceBlocks.ContainsKey(lcd))
-			{
-				Dictionary<string, string>	vars	=new Dictionary<string, string>();
-
-				ParseVars(mDeviceBlocks[lcd].CustomName, vars);
+				//check name for variables
+				int	columnWidth	=-1;
+				CheckCustomNames(lcd, out columnWidth);
 				
-				if(vars.ContainsKey("$Fnt"))
-				{
-					int	fontSize;
-					if(Int32.TryParse(vars["$Fnt"], out fontSize))
-					{
-						lcd.SetFontSize(fontSize);
-					}
-				}
-				if(vars.ContainsKey("$CW"))
-				{
-					if(Int32.TryParse(vars["$CW"], out columnWidth))
-					{
-					}
-				}
+				//not done yet
+				string	t	="Number of Farm Plots: ???\n\n";
+				t			+="Grow light energy load: ???\n";
+				t			+="Plot x,y growth %???\n";
+
+				lcd.SetText(t);
 			}
 		}
 
@@ -144,7 +109,6 @@ namespace LCDMagicMod
 		{
 			foreach(KeyValuePair<IContainer, ILcd> dlcd in mAmmoLCD)
 			{
-				//check name for variables
 				//check name for variables
 				int	columnWidth	=-1;
 				CheckCustomNames(dlcd.Value, out columnWidth);
@@ -272,6 +236,7 @@ namespace LCDMagicMod
 
 
 		//check for newly placed or removed lcds
+		//the timer for this should be biggish as all this is expensive
 		internal void LCDScan(bool bCheckBlockDestroyed, IModApi api, float blockDist)
 		{
 			if(bCheckBlockDestroyed)
@@ -311,6 +276,27 @@ namespace LCDMagicMod
 		}
 
 
+		static void AddTextLine(ref string text, string line, int columnWidth, ref bool bColumnToggle)
+		{
+			if(columnWidth > 0)
+			{
+				if(bColumnToggle)
+				{
+					text	+=line + "\n";
+				}
+				else
+				{
+					text	+=line.PadRight(columnWidth);
+				}
+				bColumnToggle	=!bColumnToggle;
+			}
+			else
+			{
+				text	+=line + "\n";
+			}
+		}
+
+
 		static float	VecDistance(VectorInt3 a, VectorInt3 b)
 		{
 			int	x	=a.x - b.x;
@@ -320,6 +306,65 @@ namespace LCDMagicMod
 			int	lenSQ	=(x * x) + (y * y) + (z * z);
 
 			return	(float)Math.Sqrt(lenSQ);
+		}
+
+
+		void CheckCustomNames(ILcd lcd, out int columnWidth)
+		{
+			//check name for variables
+			columnWidth	=-1;
+			if(mDeviceBlocks.ContainsKey(lcd))
+			{
+				Dictionary<string, string>	vars	=new Dictionary<string, string>();
+
+				ParseVars(mDeviceBlocks[lcd].CustomName, vars);
+				
+				if(vars.ContainsKey("$Fnt"))
+				{
+					int	fontSize;
+					if(Int32.TryParse(vars["$Fnt"], out fontSize))
+					{
+						lcd.SetFontSize(fontSize);
+					}
+				}
+				if(vars.ContainsKey("$CW"))
+				{
+					if(Int32.TryParse(vars["$CW"], out columnWidth))
+					{
+					}
+				}
+			}
+		}
+
+
+		void CheckForSpecialLCD(IBlock blk, ILcd lcd)
+		{
+			if(mTankLCDs.Contains(lcd))
+			{
+				return;	//already in use
+			}
+			if(mFarmLCDs.Contains(lcd))
+			{
+				return;	//already in use
+			}
+
+			Dictionary<string, string>	vars	=new Dictionary<string, string>();
+
+			ParseVars(blk.CustomName, vars);
+			if(vars.ContainsKey("$Tnk"))
+			{
+				//all the stuff from stats
+				mTankLCDs.Add(lcd);
+				mDeviceBlocks.Add(lcd, blk);
+			}
+			else if(vars.ContainsKey("$Frm"))
+			{
+				//number of plots
+				//energy used by grow lights
+				//growth data on individual plots
+				mFarmLCDs.Add(lcd);
+				mDeviceBlocks.Add(lcd, blk);
+			}
 		}
 
 
@@ -416,9 +461,15 @@ namespace LCDMagicMod
 					}
 				}
 
+				IBlock	lcdBlock	=mStruct.GetBlock(pos);
+
 				if(assoc == null)
 				{
 					api.Log("Null Assoc");
+
+					//maybe since this isn't near a device
+					//it can be used for fuel or something
+					CheckForSpecialLCD(lcdBlock, lcd);
 					continue;
 				}
 
@@ -431,7 +482,6 @@ namespace LCDMagicMod
 					mDevicePositions.Add(assoc, bestPos);
 				}
 
-				IBlock	lcdBlock	=mStruct.GetBlock(pos);
 				IBlock	devBlock	=mStruct.GetBlock(bestPos);
 
 				if(lcdBlock == null)
@@ -512,6 +562,18 @@ namespace LCDMagicMod
 		}
 
 
+		void NukeLCD(List<ILcd> lcds, ILcd toNuke)
+		{
+			if(lcds.Contains(toNuke))
+			{
+				lcds.Remove(toNuke);
+				mDevicePositions.Remove(toNuke);
+				mDeviceBlocks.Remove(toNuke);
+			}
+		}
+
+
+		//normally called when a block is deleted
 		void CheckAssociatedLCDs(IModApi api)
 		{
 			List<IDevice>	toNuke	=new List<IDevice>();
@@ -527,6 +589,12 @@ namespace LCDMagicMod
 
 			//check harvest
 			ConfirmStillThere(mHarvestLCD, toNuke);
+
+			//check tanks
+			ConfirmStillThere(mTankLCDs, toNuke);
+
+			//check farm
+			ConfirmStillThere(mFarmLCDs, toNuke);
 
 			if(toNuke.Count <= 0)
 			{
@@ -545,6 +613,8 @@ namespace LCDMagicMod
 					NukeLCD(mContainerLCD, lcd);
 					NukeLCD(mFridgeLCD, lcd);
 					NukeLCD(mHarvestLCD, lcd);
+					NukeLCD(mTankLCDs, lcd);
+					NukeLCD(mFarmLCDs, lcd);
 				}
 				else if(toNuke[i] is IContainer)
 				{
@@ -603,6 +673,71 @@ namespace LCDMagicMod
 				{
 					toNuke.Add(clcd.Value);
 				}
+			}
+		}
+
+
+		void	ConfirmStillThere(List<ILcd> lcds, List<IDevice> toNuke)
+		{
+			foreach(ILcd lcd in lcds)
+			{
+				//check lcd
+				ILcd	lcdCheck	=mStruct.GetDevice<ILcd>(mDevicePositions[lcd]);
+				if(lcd != lcdCheck)
+				{
+					toNuke.Add(lcd);
+				}
+			}
+		}
+
+
+		void ParseVars(string name, Dictionary<string, string> vars)
+		{
+			int	firstDollar	=name.IndexOf('$');
+			if(firstDollar < 0)
+			{
+				return;
+			}
+
+			int	nextDollar	=name.IndexOf('$', firstDollar + 1);
+			int	nextEqual	=name.IndexOf('=', firstDollar + 1);
+
+			string	key	="";
+			string	val	="";
+
+			if(nextDollar <=0 && nextEqual <= 0)
+			{
+				key	=name.Substring(firstDollar);
+
+				vars.Add(key, "");
+				return;
+			}
+
+			if(nextDollar > 0 && nextDollar < nextEqual)
+			{
+				key	=name.Substring(firstDollar, nextDollar - firstDollar);
+			}
+			else if(nextEqual > 0 && nextEqual < nextDollar)
+			{
+				key	=name.Substring(firstDollar, nextEqual - firstDollar);
+				val	=name.Substring(nextEqual + 1, nextDollar - nextEqual - 1);
+			}
+			else if(nextEqual > 0)
+			{
+				key	=name.Substring(firstDollar, nextEqual - firstDollar);
+				val	=name.Substring(nextEqual + 1);
+			}
+			else
+			{
+				key	=name.Substring(firstDollar, nextDollar - firstDollar);
+			}
+
+			vars.Add(key, val);
+
+			if(nextDollar > 0)
+			{
+				name	=name.Substring(nextDollar);
+				ParseVars(name, vars);
 			}
 		}
 	}
