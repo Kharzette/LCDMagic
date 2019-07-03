@@ -134,11 +134,11 @@ namespace LCDMagicMod
 
 				if(!bColToggle)
 				{
-					t	+="\n\n";
+					t	+="\n";
 				}
 				else
 				{
-					t	+="\n";
+					t	+="\n\n";
 				}
 
 				t	+="Volume Capacity: " + dlcd.Key.VolumeCapacity;
@@ -177,11 +177,11 @@ namespace LCDMagicMod
 
 				if(!bColToggle)
 				{
-					t	+="\n\n";
+					t	+="\n";
 				}
 				else
 				{
-					t	+="\n";
+					t	+="\n\n";
 				}
 
 				t	+="Volume Capacity: " + dlcd.Key.VolumeCapacity;
@@ -220,11 +220,11 @@ namespace LCDMagicMod
 
 				if(!bColToggle)
 				{
-					t	+="\n\n";
+					t	+="\n";
 				}
 				else
 				{
-					t	+="\n";
+					t	+="\n\n";
 				}
 
 				t	+="Volume Capacity: " + dlcd.Key.VolumeCapacity;
