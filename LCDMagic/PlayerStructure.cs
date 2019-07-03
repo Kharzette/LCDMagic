@@ -41,6 +41,7 @@ namespace LCDMagicMod
 			mFridgeLCD.Clear();
 			mHarvestLCD.Clear();
 			mDevicePositions.Clear();
+			mDeviceBlocks.Clear();
 		}
 
 
